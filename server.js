@@ -19,7 +19,6 @@ let otpDatabase = [];
 
 // Store unsubscribe logs
 let unsubscribeLog = [];
-
 let deleteLog = [];
 
 // ============================================
