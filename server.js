@@ -147,6 +147,51 @@ app.post('/clear', (req, res) => {
 });
 
 // ============================================
+// ENDPOINT 7: Unsubscribe specific email
+// ============================================
+app.post('/unsubscribe', (req, res) => {
+    const providedKey = req.headers['x-vahan-key'];
+    if (providedKey !== VAHAN_KEY) {
+        return res.status(403).json({ error: 'Invalid VAHAN Key' });
+    }
+    
+    const { email, email_type } = req.body;
+    
+    unsubscribeLog.push({
+        id: crypto.randomUUID(),
+        email,
+        email_type,
+        timestamp: new Date().toISOString()
+    });
+    
+    fs.writeFileSync('/tmp/unsubscribe_log.json', JSON.stringify(unsubscribeLog, null, 2));
+    
+    console.log(`[VAHAN] 🔗 Unsubscribe requested: ${email} | Type: ${email_type}`);
+    
+    // For now, just log it. Actual unsubscribe needs Gmail API + credentials
+    res.json({ success: true, message: `Unsubscribe logged for ${email}` });
+});
+
+// ENDPOINT 8: Delete specific email
+app.post('/delete', (req, res) => {
+    const providedKey = req.headers['x-vahan-key'];
+    if (providedKey !== VAHAN_KEY) return res.status(403).json({ error: 'Invalid VAHAN Key' });
+    
+    const { email, email_type } = req.body;
+    
+    deleteLog.push({
+        id: crypto.randomUUID(),
+        email,
+        email_type,
+        timestamp: new Date().toISOString()
+    });
+    fs.writeFileSync('/tmp/delete_log.json', JSON.stringify(deleteLog, null, 2));
+    
+    console.log(`[VAHAN] 🗑️ Delete requested: ${email} | Type: ${email_type}`);
+    res.json({ success: true, message: `Delete logged for ${email}` });
+});
+
+// ============================================
 // START SERVER
 // ============================================
 app.listen(PORT, () => {
