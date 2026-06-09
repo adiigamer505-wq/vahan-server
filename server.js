@@ -193,6 +193,34 @@ app.post('/delete', (req, res) => {
 });
 
 // ============================================
+// ENDPOINT 9: Get Unsubscribe Logs
+// ============================================
+app.get('/unsubscribe-log', (req, res) => {
+    const key = req.query.key;
+    if (key !== VAHAN_KEY) return res.status(403).json({ error: 'Invalid Key' });
+    try {
+        const data = fs.readFileSync('/tmp/unsubscribe_log.json', 'utf8');
+        res.json(JSON.parse(data));
+    } catch(e) {
+        res.json([]);
+    }
+});
+
+// ============================================
+// ENDPOINT 10: Get Delete Logs
+// ============================================
+app.get('/delete-log', (req, res) => {
+    const key = req.query.key;
+    if (key !== VAHAN_KEY) return res.status(403).json({ error: 'Invalid Key' });
+    try {
+        const data = fs.readFileSync('/tmp/delete_log.json', 'utf8');
+        res.json(JSON.parse(data));
+    } catch(e) {
+        res.json([]);
+    }
+});
+
+// ============================================
 // START SERVER
 // ============================================
 app.listen(PORT, () => {
