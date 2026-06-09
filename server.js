@@ -20,6 +20,8 @@ let otpDatabase = [];
 // Store unsubscribe logs
 let unsubscribeLog = [];
 
+let deleteLog = [];
+
 // ============================================
 // ENDPOINT 1: Receive OTP from Android SMS
 // ============================================
