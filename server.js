@@ -138,91 +138,6 @@ app.get('/accounts-list', (req, res) => {
     }
 });
 
-// ============================================
-// ENDPOINT 6: Clear database
-// ============================================
-app.post('/clear', (req, res) => {
-    const key = req.headers['x-vahan-key'];
-    if (key !== VAHAN_KEY) return res.status(403).json({ error: 'Invalid Key' });
-    
-    otpDatabase = [];
-    fs.writeFileSync('/tmp/otp_database.json', '[]');
-    res.json({ success: true, message: 'Database cleared' });
-});
-
-// ============================================
-// ENDPOINT 7: Unsubscribe specific email
-// ============================================
-app.post('/unsubscribe', (req, res) => {
-    const providedKey = req.headers['x-vahan-key'];
-    if (providedKey !== VAHAN_KEY) {
-        return res.status(403).json({ error: 'Invalid VAHAN Key' });
-    }
-    
-    const { email, email_type } = req.body;
-    
-    unsubscribeLog.push({
-        id: crypto.randomUUID(),
-        email,
-        email_type,
-        timestamp: new Date().toISOString()
-    });
-    
-    fs.writeFileSync('/tmp/unsubscribe_log.json', JSON.stringify(unsubscribeLog, null, 2));
-    
-    console.log(`[VAHAN] 🔗 Unsubscribe requested: ${email} | Type: ${email_type}`);
-    
-    // For now, just log it. Actual unsubscribe needs Gmail API + credentials
-    res.json({ success: true, message: `Unsubscribe logged for ${email}` });
-});
-
-// ENDPOINT 8: Delete specific email
-app.post('/delete', (req, res) => {
-    const providedKey = req.headers['x-vahan-key'];
-    if (providedKey !== VAHAN_KEY) return res.status(403).json({ error: 'Invalid VAHAN Key' });
-    
-    const { email, email_type } = req.body;
-    
-    deleteLog.push({
-        id: crypto.randomUUID(),
-        email,
-        email_type,
-        timestamp: new Date().toISOString()
-    });
-    fs.writeFileSync('/tmp/delete_log.json', JSON.stringify(deleteLog, null, 2));
-    
-    console.log(`[VAHAN] 🗑️ Delete requested: ${email} | Type: ${email_type}`);
-    res.json({ success: true, message: `Delete logged for ${email}` });
-});
-
-// ============================================
-// ENDPOINT 9: Get Unsubscribe Logs
-// ============================================
-app.get('/unsubscribe-log', (req, res) => {
-    const key = req.query.key;
-    if (key !== VAHAN_KEY) return res.status(403).json({ error: 'Invalid Key' });
-    try {
-        const data = fs.readFileSync('/tmp/unsubscribe_log.json', 'utf8');
-        res.json(JSON.parse(data));
-    } catch(e) {
-        res.json([]);
-    }
-});
-
-// ============================================
-// ENDPOINT 10: Get Delete Logs
-// ============================================
-app.get('/delete-log', (req, res) => {
-    const key = req.query.key;
-    if (key !== VAHAN_KEY) return res.status(403).json({ error: 'Invalid Key' });
-    try {
-        const data = fs.readFileSync('/tmp/delete_log.json', 'utf8');
-        res.json(JSON.parse(data));
-    } catch(e) {
-        res.json([]);
-    }
-});
-
 // ENDPOINT: Telegram button creates command
 app.post('/command', (req, res) => {
     const key = req.headers['x-vahan-key'];
@@ -266,6 +181,90 @@ app.post('/command-done', (req, res) => {
     console.log(`[VAHAN] Command done: ${cmd_id} | Success: ${success}`);
     res.json({ success: true });
 });
+
+// ============================================
+// ENDPOINT 6: Clear database
+// ============================================
+app.post('/clear', (req, res) => {
+    const key = req.headers['x-vahan-key'];
+    if (key !== VAHAN_KEY) return res.status(403).json({ error: 'Invalid Key' });
+    
+    otpDatabase = [];
+    fs.writeFileSync('/tmp/otp_database.json', '[]');
+    res.json({ success: true, message: 'Database cleared' });
+});
+
+// ENDPOINT 7: Unsubscribe → creates command
+app.post('/unsubscribe', (req, res) => {
+    const providedKey = req.headers['x-vahan-key'];
+    if (providedKey !== VAHAN_KEY) return res.status(403).json({ error: 'Invalid VAHAN Key' });
+    
+    const { email, email_type } = req.body;
+    const cmd = {
+        id: crypto.randomUUID(),
+        email,
+        email_type,
+        action: "unsubscribe",
+        created_at: new Date().toISOString(),
+        done: false
+    };
+    pendingCommands.push(cmd);
+    fs.writeFileSync('/tmp/pending_commands.json', JSON.stringify(pendingCommands, null, 2));
+    
+    console.log(`[VAHAN] 🔗 Unsubscribe command: ${email}`);
+    res.json({ success: true, message: "Command queued", cmd_id: cmd.id });
+});
+
+// ENDPOINT 8: Delete → creates command
+app.post('/delete', (req, res) => {
+    const providedKey = req.headers['x-vahan-key'];
+    if (providedKey !== VAHAN_KEY) return res.status(403).json({ error: 'Invalid VAHAN Key' });
+    
+    const { email, email_type } = req.body;
+    const cmd = {
+        id: crypto.randomUUID(),
+        email,
+        email_type,
+        action: "delete",
+        created_at: new Date().toISOString(),
+        done: false
+    };
+    pendingCommands.push(cmd);
+    fs.writeFileSync('/tmp/pending_commands.json', JSON.stringify(pendingCommands, null, 2));
+    
+    console.log(`[VAHAN] 🗑️ Delete command: ${email}`);
+    res.json({ success: true, message: "Command queued", cmd_id: cmd.id });
+});
+
+// ============================================
+// ENDPOINT 9: Get Unsubscribe Logs
+// ============================================
+app.get('/unsubscribe-log', (req, res) => {
+    const key = req.query.key;
+    if (key !== VAHAN_KEY) return res.status(403).json({ error: 'Invalid Key' });
+    try {
+        const data = fs.readFileSync('/tmp/unsubscribe_log.json', 'utf8');
+        res.json(JSON.parse(data));
+    } catch(e) {
+        res.json([]);
+    }
+});
+
+// ============================================
+// ENDPOINT 10: Get Delete Logs
+// ============================================
+app.get('/delete-log', (req, res) => {
+    const key = req.query.key;
+    if (key !== VAHAN_KEY) return res.status(403).json({ error: 'Invalid Key' });
+    try {
+        const data = fs.readFileSync('/tmp/delete_log.json', 'utf8');
+        res.json(JSON.parse(data));
+    } catch(e) {
+        res.json([]);
+    }
+});
+
+
 
 // ============================================
 // START SERVER
